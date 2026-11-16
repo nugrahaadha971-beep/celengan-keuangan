@@ -768,8 +768,8 @@ const E_MAP = {
   '🗑':'trash','🧮':'calc','⚡':'bolt','🔒':'lock','👝':'bag','🛍':'bag','⇄':'swap','➕':'plus','🧪':'flask','🎯':'target',
   '💰':'coin','📊':'chart','⏱':'clock','🔁':'repeat','🤝':'users','👪':'users','⭐':'star','📤':'share','⚙':'sliders',
   '◀':'left','▶':'right','⛽':'fuel','👕':'shirt','🏦':'bank','🏛':'bank','🛒':'cart','☕':'coffee','🎮':'game','❤':'heart',
-  '🤲':'heart','🍹':'drink','🩺':'health','📱':'phone','🍴':'fork','🍽':'fork','✈':'plane','💡':'bulb',
-  '🏃':'run','🅿':'park','🎓':'cap','🧴':'bottle','💼':'case','🤷':'help','💵':'cash','🎁':'gift',
+  '🤲':'heart','🍹':'drink','🛠':'wrench','🩺':'health','📱':'phone','🍴':'fork','🍽':'fork','✈':'plane','💡':'bulb',
+  '🧁':'cake','🏃':'run','🅿':'park','🎓':'cap','🧴':'bottle','💼':'case','🏍':'moto','🤷':'help','💵':'cash','🎁':'gift',
   '🎉':'spark','📈':'trend','↩':'undo','📥':'inbox','📌':'pin','✅':'check',
   '🛠':'wrench','🧁':'cake','🏍':'moto','🧾':'receipt','🔑':'key','🍔':'burger','🍕':'pizza','🚗':'car','🚌':'bus','🚲':'bike','🛵':'moto','💻':'laptop','🔧':'wrench','🧹':'broom','🚿':'shower','👟':'shoe','👗':'dress','💄':'lipstick','🎬':'film','🎵':'music','🎧':'headphones','📷':'camera','📚':'book','🌴':'palm','✂':'scissors','💊':'pill','🏋':'dumbbell','👶':'baby','🐶':'paw','🕌':'mosque','🎒':'backpack','📦':'package','🎂':'cake'
 };
@@ -909,15 +909,15 @@ function NC(o) {
 const INIT = () => NC({
   config: { showDailyLimit: true, privacyMode: false, demoBanner: true, ver: APPV },
   wallets: [
-    { id: 'w1', name: 'Cash', balance: 500000, icon: '💵', type: 'Tunai' },
-    { id: 'w2', name: 'Bank BNI', balance: 3500000, icon: '🏦', type: 'Bank Utama' },
-    { id: 'w3', name: 'Bank Jago', balance: 2500000, icon: '📱', type: 'Bank Digital' },
-    { id: 'w4', name: 'Bank BSI', balance: 1000000, icon: '🌙', type: 'Operasional' },
-    { id: 'w5', name: 'Bank Kalbar', balance: 500000, icon: '🏛️', type: 'Tabungan' }
+    { id: 'w1', name: 'Tunai', balance: 0, icon: '💵', type: 'Tunai' },
+    { id: 'w2', name: 'Rekening Utama', balance: 0, icon: '🏦', type: 'Bank Utama' },
+    { id: 'w3', name: 'Dompet Digital', balance: 0, icon: '📱', type: 'Bank Digital' },
+    { id: 'w4', name: 'Rekening Operasional', balance: 0, icon: '🌙', type: 'Operasional' },
+    { id: 'w5', name: 'Tabungan', balance: 0, icon: '🏛️', type: 'Tabungan' }
   ],
   categories: [], receivables: [], goals: [], autos: [], tpls: [], pockets: [],
-  recurring: [{ id: 'r1', title: 'IndiHome', amount: 280000, dueDate: 5, walletId: 'w2', categoryId: '', paidMonth: null }],
-  wishlist: [{ id: 's1', title: 'Sepatu Lari 5K', cost: 850000, prio: 'Ingin' }],
+  recurring: [{ id: 'r1', title: 'Contoh Tagihan', amount: 100000, dueDate: 5, walletId: 'w2', categoryId: '', paidMonth: null }],
+  wishlist: [{ id: 's1', title: 'Contoh Wishlist', cost: 500000, prio: 'Ingin' }],
   transactions: []
 });
 
@@ -1041,14 +1041,7 @@ function tokenizeExpr(s) {
   let i = 0;
   while (i < s.length) {
     const c = s[i];
-    if ('+-*/()^%'.includes(c)) { tokens.push(c); i++; continue; }
-    if (c >= 'a' && c <= 'z') {
-      let j = i + 1;
-      while (j < s.length && s[j] >= 'a' && s[j] <= 'z') j++;
-      tokens.push(s.slice(i, j));
-      i = j;
-      continue;
-    }
+    if ('+-*/()'.includes(c)) { tokens.push(c); i++; continue; }
     if (c === '.' || (c >= '0' && c <= '9')) {
       let j = i + 1;
       while (j < s.length && ((s[j] >= '0' && s[j] <= '9') || s[j] === '.')) j++;
@@ -1063,61 +1056,31 @@ function tokenizeExpr(s) {
   return tokens;
 }
 
-/* Fungsi: akar/sqrt, bulat/round, lantai/floor, atas/ceil, abs. Operator: + - * / ^ ( ) dan persen.
-   "a+b%" / "a-b%" = persen dari a (diskon/pajak); "a*b%" = a x b/100. */
-const EV_FN = { akar: Math.sqrt, sqrt: Math.sqrt, bulat: Math.round, round: Math.round, lantai: Math.floor, floor: Math.floor, atas: Math.ceil, ceil: Math.ceil, abs: Math.abs };
 function parseExpr(tokens) {
-  let i = 0, pctLit = false;
-  const peek = () => tokens[i];
-  const eat = t => { if (peek() === t) { i++; return true; } return false; };
+  let i = 0;
+  function peek() { return tokens[i]; }
+  function eat(t) { if (peek() === t) { i++; return true; } return false; }
   function primary() {
-    pctLit = false;
-    if (eat('(')) { const v = expr(); if (!eat(')')) throw new Error('paren'); pctLit = false; return v; }
+    if (eat('+')) return primary();
+    if (eat('-')) return -primary();
+    if (eat('(')) { const v = expr(); if (!eat(')')) throw new Error('paren'); return v; }
     const t = peek();
-    if (t == null) throw new Error('num');
-    if (/^[a-z]+$/.test(t)) {
-      const f = EV_FN[t];
-      if (!f) throw new Error('fn');
-      i++;
-      if (!eat('(')) throw new Error('fn(');
-      const v = expr();
-      if (!eat(')')) throw new Error('paren');
-      pctLit = false;
-      return f(v);
-    }
-    if ('+-*/()^%'.includes(t)) throw new Error('num');
-    i++;
-    let v = parseFloat(t);
-    if (eat('%')) { v /= 100; pctLit = true; }
-    return v;
-  }
-  function unary() {
-    if (eat('+')) return unary();
-    if (eat('-')) { const v = unary(); pctLit = false; return -v; }
-    return power();
-  }
-  function power() {
-    const b = primary();
-    if (eat('^')) { const e = unary(); pctLit = false; return Math.pow(b, e); }
-    return b;
+    if (t == null || '+-*/()'.includes(t)) throw new Error('num');
+    i++; return parseFloat(t);
   }
   function term() {
-    let v = unary(), pure = pctLit;
+    let v = primary();
     while (peek() === '*' || peek() === '/') {
-      const op = tokens[i++]; const r = unary();
+      const op = tokens[i++]; const r = primary();
       v = op === '*' ? v * r : v / r;
-      pure = false;
     }
-    pctLit = pure;
     return v;
   }
   function expr() {
     let v = term();
     while (peek() === '+' || peek() === '-') {
-      const op = tokens[i++]; let r = term();
-      if (pctLit) r = v * r;
+      const op = tokens[i++]; const r = term();
       v = op === '+' ? v + r : v - r;
-      pctLit = false;
     }
     return v;
   }
@@ -1128,17 +1091,16 @@ function parseExpr(tokens) {
 
 function ev(s) {
   s = String(s || '').toLowerCase().replace(/\s/g, '').replace(/rp\.?/g, '')
-    .replace(/(\d+(?:[.,]\d+)*)(?:jt|juta)(\d+(?:[.,]\d+)*)(?:k|rb|ribu)(?![a-z\d])/g, '($1*1000000+$2*1000)')
-    .replace(/(\d+(?:[.,]\d+)*)(?:jt|juta)(?!\d)/g, '($1*1000000)')
-    .replace(/(\d+(?:[.,]\d+)*)(?:k|rb|ribu)(?!\d)/g, '($1*1000)')
-    .replace(/[×x]/g, '*').replace(/\*\*/g, '^').replace(/[÷:]/g, '/').replace(/[−–]/g, '-')
+    .replace(/(\d)(?:jt|juta)/g, '$1*1000000')
+    .replace(/(\d)(?:k|rb|ribu)/g, '$1*1000')
+    .replace(/[×x]/g, '*').replace(/[÷:]/g, '/').replace(/[−–]/g, '-')
     .replace(/(\d)\.(?=\d{3}(?!\d))/g, '$1');
-  if (!/^[\d+\-*/().,^%a-z]+$/.test(s)) return 0;
+  if (!/^[\d+\-*/().,]+$/.test(s)) return 0;
   s = s.replace(/,/g, '.');
   if (!s || s === '.' || s === '-') return 0;
   try {
-    const n = Math.round(parseExpr(tokenizeExpr(s)));
-    return Number.isSafeInteger(n) ? n : 0;
+    const r = parseExpr(tokenizeExpr(s));
+    return Number.isFinite(r) ? Math.round(r) : 0;
   } catch (e) { return 0; }
 }
 
@@ -1207,82 +1169,13 @@ function guessCat(title) {
   return null;
 }
 
-/* Quick-Log: cari ekspresi hitung di teks, mis. "ngopi 35000+25000", "3x15000", "200k-10%", "akar(144)*1000" */
-const QFN = /^(?:akar|sqrt|bulat|round|lantai|floor|atas|ceil|abs)$/i;
-const QNUM = /(?:rp\.?\s*)?(?:\d+(?:[.,]\d+)*\s*(?:jt|juta)\s*\d+(?:[.,]\d+)*\s*(?:rb|ribu|k)|\d+(?:[.,]\d+)*\s*(?:jt|juta|rb|ribu|k)?)(?:\s*%)?(?:(?![\p{L}\d])|(?=\s*[x×]\s*[\d(]))/iuy;
-function quickTokens(u) {
-  const T = [];
-  let i = 0;
-  while (i < u.length) {
-    const c = u[i];
-    if (/\s/.test(c)) { i++; continue; }
-    const p = T[T.length - 1];
-    if ((c === 'x' || c === 'X') && p && (p.k === 'num' || p.k === 'rp') && /^\s*[\d(]/.test(u.slice(i + 1))) { T.push({ k: 'op', ch: '*', s: i, e: i + 1 }); i++; continue; }
-    if ('+-−–*/÷×^'.includes(c)) { T.push({ k: 'op', ch: c === '×' ? '*' : c === '÷' ? '/' : (c === '−' || c === '–') ? '-' : c, s: i, e: i + 1 }); i++; continue; }
-    if (c === '(') { T.push({ k: 'lp', s: i, e: i + 1 }); i++; continue; }
-    if (c === ')') { T.push({ k: 'rp', s: i, e: i + 1 }); i++; continue; }
-    const startOk = i === 0 || !/[\p{L}\d]/u.test(u[i - 1]) || (p && p.k === 'op' && p.e === i);
-    if (startOk && (/\d/.test(c) || c === 'r' || c === 'R')) {
-      QNUM.lastIndex = i;
-      const m = QNUM.exec(u);
-      if (m) {
-        const text = m[0].trimEnd();
-        T.push({ k: 'num', text, s: i, e: i + text.length, unit: /[a-z]/i.test(text.replace(/^rp\.?/i, '')) });
-        i += m[0].length;
-        continue;
-      }
-    }
-    if (/[\p{L}\d]/u.test(c)) {
-      let j = i + 1;
-      while (j < u.length && /[\p{L}\d]/u.test(u[j])) j++;
-      const w = u.slice(i, j);
-      T.push(QFN.test(w) && /^\s*\(/.test(u.slice(j)) ? { k: 'fn', name: w.toLowerCase(), s: i, e: j } : { k: 'word', s: i, e: j });
-      i = j;
-      continue;
-    }
-    T.push({ k: 'other', s: i, e: i + 1 });
-    i++;
-  }
-  return T;
-}
-function quickAmount(u) {
-  const T = quickTokens(u), runs = [];
-  for (let i = 0; i < T.length;) {
-    if (T[i].k !== 'num' && T[i].k !== 'lp' && T[i].k !== 'fn') { i++; continue; }
-    let depth = 0, exp = true, good = -1, j = i;
-    for (; j < T.length; j++) {
-      const t = T[j];
-      if (exp) {
-        if (t.k === 'num') { exp = false; if (!depth) good = j; }
-        else if (t.k === 'lp') depth++;
-        else if (t.k === 'fn' && T[j + 1] && T[j + 1].k === 'lp') { depth++; j++; }
-        else break;
-      } else if (t.k === 'op') exp = true;
-      else if (t.k === 'rp' && depth > 0) { depth--; if (!depth) good = j; }
-      else break;
-    }
-    if (good < i) { i++; continue; }
-    const seg = T.slice(i, good + 1);
-    if (seg.length === 1 && /%$/.test(seg[0].text)) { i = good + 1; continue; } // persen sendirian bukan nominal
-    runs.push({
-      a: T[i].s, b: T[good].e, unit: seg.some(x => x.unit),
-      expr: seg.map(x => x.k === 'op' ? x.ch : x.k === 'num' ? x.text : x.k === 'fn' ? x.name : x.k === 'lp' ? '(' : ')').join('')
-    });
-    i = good + 1;
-  }
-  const pick = runs.find(r => r.unit) || runs[runs.length - 1];
-  let rest = u;
-  for (let k = runs.length - 1; k >= 0; k--) rest = rest.slice(0, runs[k].a) + ' ' + rest.slice(runs[k].b);
-  rest = rest.replace(/(^|\s)[+\-−–*/÷×^=()]+(?=\s|$)/g, ' ').replace(/^[\s+\-−–*/÷×^=]+|[\s+\-−–*/÷×^=]+$/g, '');
-  return { amount: pick ? ev(pick.expr) : 0, rest };
-}
-
 function parseQuick(t) {
   t = (t || '').trim();
   if (!t) return null;
   const inc = t.includes('+@');
-  const QA = quickAmount(t.replace(/\+?@[\p{L}\d-]+/gu, ' ').replace(/~[\p{L}\d_-]+/gu, ' ').replace(/#[\p{L}\d-]+/gu, ' '));
-  const amount = QA.amount;
+  const ns = t.match(NUM) || [];
+  const n = ns.find(x => /[a-z]$/i.test(x.trim())) || ns[ns.length - 1];
+  const amount = n ? ev(n) : 0;
   let walletId = S.wallets[0]?.id || '';
   let categoryId = inc
     ? incId(INCKEY[Object.keys(INCKEY).find(k => t.toLowerCase().includes(k))] || 'Pemasukan Lainnya')
@@ -1301,7 +1194,13 @@ function parseQuick(t) {
     const f = pickBy(S.categories, cm[1], c => (c.kind || 'expense') === 'expense');
     if (f) { categoryId = f.id; cOk = true; }
   }
-  let title = QA.rest.replace(/\s+/g, ' ').trim();
+  let title = t
+    .replace(/\+?@[\p{L}\d-]+/gu, '')
+    .replace(/~[\p{L}\d_-]+/gu, '')
+    .replace(/#[\p{L}\d-]+/gu, '')
+    .replace(NUM, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   let cAuto = '';
   if (!inc && !cOk && title) { const g = guessCat(title); if (g) { categoryId = g.id; cOk = true; cAuto = g.src; } }
   if (!wOk && title) { const wt = title.toLowerCase().match(/[\p{L}\d]+/gu) || []; const wf = S.wallets.find(w => wt.includes(nz(w.name))); if (wf) { walletId = wf.id; wOk = true; } }
@@ -1780,8 +1679,6 @@ function validBackup(o) {
   if (bad(o.categories, c => typeof c.id === 'string' && typeof c.name === 'string')) return 'data kategori rusak';
   if (bad(o.pockets, k => typeof k.id === 'string' && typeof k.walletId === 'string' && num(k.balance))) return 'data kantong rusak';
   if (!Array.isArray(o.receivables) || !Array.isArray(o.recurring) || !Array.isArray(o.goals) || !Array.isArray(o.autos) || !Array.isArray(o.tpls) || !Array.isArray(o.wishlist)) return 'struktur data tidak lengkap';
-  const okId = x => typeof x.id !== 'string' || /^[\w.-]{1,64}$/.test(x.id);
-  if (['wallets', 'transactions', 'categories', 'pockets', 'receivables', 'recurring', 'goals', 'autos', 'tpls', 'wishlist'].some(k => o[k].some(x => !x || typeof x !== 'object' || !okId(x)))) return 'ID berisi karakter tidak valid';
   const ids = a => new Set(a.map(x => x.id));
   const wids = ids(o.wallets), cids = ids(o.categories), pids = ids(o.pockets);
   if (new Set(o.wallets.map(x => x.id)).size !== o.wallets.length) return 'ID dompet duplikat';
@@ -1819,11 +1716,11 @@ function info(title, html, fn) {
 const closeM = () => { $('#ov').hidden = true; $('#cv').hidden = true; };
 const del = (msg, fn) => info('Hapus?', msg, fn);
 const F = (l, n, a = '') => `<label>${l}</label><input name="${n}" ${a}>`;
-const wOpt = () => S.wallets.map(w => `<option value="${esc(w.id)}">${esc(w.icon)} ${esc(w.name)}</option>`).join('');
+const wOpt = () => S.wallets.map(w => `<option value="${w.id}">${esc(w.icon)} ${esc(w.name)}</option>`).join('');
 const cOpt = (kind = 'expense') => S.categories
   .filter(c => (c.kind || 'expense') === kind)
-  .map(c => `<option value="${esc(c.id)}">${esc(c.icon)} ${esc(c.name)}</option>`).join('');
-const amtF = (n, l) => `<label>${l}</label><div class="row nw" style="gap:6px"><input name="${n}" inputmode="decimal" placeholder="35000, 35k, atau 1,5jt"><button type="button" class="b icon-btn" data-a="co" data-v="${n}" aria-label="Kalkulator">🧮</button></div>`;
+  .map(c => `<option value="${c.id}">${esc(c.icon)} ${esc(c.name)}</option>`).join('');
+const amtF = (n, l) => `<label>${l}</label><div class="row nw" style="gap:6px"><input name="${n}" inputmode="decimal" placeholder="35000 atau 35k"><button type="button" class="b icon-btn" data-a="co" data-v="${n}" aria-label="Kalkulator">🧮</button></div>`;
 
 function syncCat(f) {
   const el = f && f.elements, s = el && el.categoryId;
@@ -1842,7 +1739,7 @@ function syncPk(f) {
   const cur = s.value;
   const ps = S.pockets.filter(p => p.walletId === wid);
   s.innerHTML = '<option value="">Kantong utama (otomatis)</option>' +
-    ps.map(p => `<option value="${esc(p.id)}">${esc(p.icon)} ${esc(p.name)} (${fmtT(p.balance)})</option>`).join('');
+    ps.map(p => `<option value="${p.id}">${esc(p.icon)} ${esc(p.name)} (${fmtT(p.balance)})</option>`).join('');
   if (ps.some(p => p.id === cur)) s.value = cur;
   const r = $('#pkRow');
   if (r) r.hidden = !ps.length;
@@ -1904,7 +1801,7 @@ const FORMS = {
         <div id="qq">
           <input name="q" placeholder="kopi v60 35k #hobi @jago" autocomplete="off">
           <div class="chips" id="qchips">${qChipsHTML('')}</div>
-          <div class="pv" id="qp">Ketik bebas, mis. “beli sarapan 20k”. Bisa hitung: 35000+25000, 3x15000, 90k/3, 200k-10%, akar(144). Kategori dan dompet ditebak otomatis. Pisahkan dengan koma untuk beberapa sekaligus.</div>
+          <div class="pv" id="qp">Ketik bebas, mis. “beli sarapan 20k”. Kategori dan dompet ditebak otomatis. Pisahkan dengan koma untuk beberapa sekaligus.</div>
         </div>
       </div>
       <div id="mfb" hidden>
@@ -2289,7 +2186,7 @@ const FORMS = {
       <label>Ke kantong</label>
       <select name="pk">${pks.map(p => {
         const w = S.wallets.find(w => w.id === p.walletId);
-        return `<option value="${esc(p.id)}">${esc(p.icon)} ${esc(p.name)} · ${esc(w ? w.name : '')}</option>`;
+        return `<option value="${p.id}">${esc(p.icon)} ${esc(p.name)} · ${esc(w ? w.name : '')}</option>`;
       }).join('')}</select>
       ${amtF('amount', 'Jumlah (Rp)')}`, v => {
       const amt = requirePositive(v.amount);
@@ -2461,7 +2358,7 @@ const FORMS = {
   bk() {
     info('Bagikan & Cadangkan', `
       <button type="button" class="b p" data-a="rep" style="width:100%;margin-bottom:14px">Laporan Keuangan (PDF)</button>
-      <label class="sm" style="display:block">Cadangan JSON (simpan di Notes/Drive) · ${S.config.lastBackup ? 'terakhir ' + new Date(S.config.lastBackup).toLocaleDateString('id-ID') : 'belum pernah'}</label>
+      <label class="sm" style="display:block">Cadangan JSON (simpan di Notes/Drive)</label>
       <textarea id="t2" rows="5" style="font-family:monospace">${esc(JSON.stringify(S))}</textarea>
       <div class="row" style="justify-content:flex-start;flex-wrap:wrap;margin-top:10px;gap:6px">
         <button type="button" class="b s" data-a="cp" data-t="t2">Salin JSON</button>
@@ -2521,11 +2418,11 @@ function pocketsHTML(w) {
     ${ps.map(p => row(p.type, esc(p.icon), esc(p.name),
       T[p.type] + (lk(p) ? ' · ' + lk(p) : ''),
       fmask(p.balance),
-      `<button type="button" class="b s" data-a="pmv" data-id="${esc(p.id)}" aria-label="Pindah">⇄</button>
-       <button type="button" class="b s" data-a="ped" data-id="${esc(p.id)}" aria-label="Edit">✏️</button>
-       <button type="button" class="b s" data-a="pdel" data-id="${esc(p.id)}" aria-label="Hapus">🗑</button>`
+      `<button type="button" class="b s" data-a="pmv" data-id="${p.id}" aria-label="Pindah">⇄</button>
+       <button type="button" class="b s" data-a="ped" data-id="${p.id}" aria-label="Edit">✏️</button>
+       <button type="button" class="b s" data-a="pdel" data-id="${p.id}" aria-label="Hapus">🗑</button>`
     )).join('')}
-    <button type="button" class="b s p" data-a="pnew" data-id="${esc(w.id)}" style="align-self:flex-start;margin-top:4px">+ Kantong baru</button>
+    <button type="button" class="b s p" data-a="pnew" data-id="${w.id}" style="align-self:flex-start;margin-top:4px">+ Kantong baru</button>
   </div>`;
 }
 
@@ -2650,14 +2547,14 @@ const filterBar = () => `
   <div class="g2" style="margin-bottom:10px">
     <select name="fw" aria-label="Filter dompet">
       <option value="">Semua dompet</option>
-      ${S.wallets.map(w => `<option value="${esc(w.id)}"${w.id === FW ? ' selected' : ''}>${esc(w.name)}</option>`).join('')}
+      ${S.wallets.map(w => `<option value="${w.id}"${w.id === FW ? ' selected' : ''}>${esc(w.name)}</option>`).join('')}
     </select>
     <select name="fc" aria-label="Filter kategori">
       <option value="">Semua kategori</option>
       ${['expense', 'income'].map(k =>
         `<optgroup label="${k === 'income' ? 'Pemasukan' : 'Pengeluaran'}">
           ${S.categories.filter(c => (c.kind || 'expense') === k)
-            .map(c => `<option value="${esc(c.id)}"${c.id === FC ? ' selected' : ''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('')}
+            .map(c => `<option value="${c.id}"${c.id === FC ? ' selected' : ''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('')}
         </optgroup>`
       ).join('')}
     </select>
@@ -2725,7 +2622,7 @@ const batchRow = txs => {
     const w2 = W(t.toWalletId), f = fe.find(x => x.forWalletId === t.toWalletId);
     return `<div class="bt-line"><span>→ ${w2 ? esc(w2.name) : '—'}</span><b class="money mask-money">${fmt(t.amount)}${f ? ` <em>+ admin ${fmt(f.amount)}</em>` : ''}</b></div>`;
   }).join('');
-  return `<div class="t-card fold bt-group${OPEN.has(id) ? ' open' : ''}" data-fold="${esc(id)}">
+  return `<div class="t-card fold bt-group${OPEN.has(id) ? ' open' : ''}" data-fold="${id}">
     <div class="t-icon-box">⇉</div>
     <div class="t-main-info">
       <div class="t-title">${esc(tr[0].title)} · ${tr.length} tujuan</div>
@@ -2734,7 +2631,7 @@ const batchRow = txs => {
     <div class="t-right"><b class="sm bold"><span class="mask-money money">${fmt(total)}</span></b>${CHEV}</div>
     <div class="fold-body"><div>
       <div class="bt-lines">${lines}</div>
-      <div class="fold-actions"><button type="button" class="b s" data-a="xTB" data-id="${esc(id)}">🗑 Hapus semua</button></div>
+      <div class="fold-actions"><button type="button" class="b s" data-a="xTB" data-id="${id}">🗑 Hapus semua</button></div>
     </div></div>
   </div>`;
 };
@@ -2834,7 +2731,7 @@ function catRow(c, mtx, PL) {
   const T = tempo(c, MF);
   const has = B > 0 && c.type !== 'tracking' && MF !== 'all';
   const pc = has ? Math.min(100, sp / B * 100) : 0;
-  return `<div class="it c fold${OPEN.has(c.id) ? ' open' : ''}" data-fold="${esc(c.id)}">
+  return `<div class="it c fold${OPEN.has(c.id) ? ' open' : ''}" data-fold="${c.id}">
     <div class="row nw fold-head">
       <b class="ell">${esc(c.icon)} ${esc(c.name)}</b>
       <span class="row nw" style="gap:6px"><span class="sm nowrap money">${fmask(sp)}${has ? ' / ' + fmask(B) : ''}</span>${CHEV}</span>
@@ -2847,8 +2744,8 @@ function catRow(c, mtx, PL) {
       ${has && T ? `<div class="row sm"><span class="${TL[T.st][1]}">${TL[T.st][0]}</span>
         <span class="money">sisa ${fmask(T.perDay)}/hari${T.proj != null ? ' · proyeksi ' + fmask(T.proj) : ''}</span></div>` : ''}
       <div class="fold-actions">
-        <button type="button" class="b s" data-a="ec" data-id="${esc(c.id)}">✏️ Edit</button>
-        <button type="button" class="b s" data-a="xC" data-id="${esc(c.id)}">🗑 Hapus</button>
+        <button type="button" class="b s" data-a="ec" data-id="${c.id}">✏️ Edit</button>
+        <button type="button" class="b s" data-a="xC" data-id="${c.id}">🗑 Hapus</button>
       </div>
     </div></div>
   </div>`;
@@ -2979,12 +2876,12 @@ function render() {
           </div>
           
           <div class="w-actions">
-            <button type="button" class="b s" data-a="trW" data-id="${esc(w.id)}">⇄ Transfer</button>
-            <button type="button" class="b s ${isExpanded ? 'g' : ''}" data-a="pk" data-id="${esc(w.id)}">
+            <button type="button" class="b s" data-a="trW" data-id="${w.id}">⇄ Transfer</button>
+            <button type="button" class="b s ${isExpanded ? 'g' : ''}" data-a="pk" data-id="${w.id}">
               👝 Kantong (${pCount})
             </button>
-            <button type="button" class="b s" data-a="adj" data-id="${esc(w.id)}" title="Kelola / Adjust">⚙️</button>
-            <button type="button" class="b s" data-a="xW" data-id="${esc(w.id)}" title="Hapus">🗑</button>
+            <button type="button" class="b s" data-a="adj" data-id="${w.id}" title="Kelola / Adjust">⚙️</button>
+            <button type="button" class="b s" data-a="xW" data-id="${w.id}" title="Hapus">🗑</button>
           </div>
 
           ${isExpanded ? pocketsHTML(w) : ''}
@@ -3005,8 +2902,8 @@ function render() {
             <div class="it">
               <div><b>${esc(c.icon)} ${esc(c.name)}</b><div class="sm">Kategori pemasukan</div></div>
               <span>
-                <button type="button" class="b s" data-a="ec" data-id="${esc(c.id)}">✏️</button>
-                <button type="button" class="b s" data-a="xC" data-id="${esc(c.id)}">🗑</button>
+                <button type="button" class="b s" data-a="ec" data-id="${c.id}">✏️</button>
+                <button type="button" class="b s" data-a="xC" data-id="${c.id}">🗑</button>
               </span>
             </div>`).join('')
         : '')
@@ -3041,9 +2938,9 @@ function render() {
         <div class="bl-act">
           <span class="bl-pill">${x.pill}</span>
           <span class="bl-btns">
-            ${x.due && !x.paid ? `<button type="button" class="b s g" data-a="payB" data-id="${esc(r.id)}">Bayar</button>` : ''}
-            <button type="button" class="b s" data-a="eB" data-id="${esc(r.id)}" aria-label="Ubah">✏️</button>
-            <button type="button" class="b s" data-a="xB" data-id="${esc(r.id)}" aria-label="Hapus">🗑</button>
+            ${x.due && !x.paid ? `<button type="button" class="b s g" data-a="payB" data-id="${r.id}">Bayar</button>` : ''}
+            <button type="button" class="b s" data-a="eB" data-id="${r.id}" aria-label="Ubah">✏️</button>
+            <button type="button" class="b s" data-a="xB" data-id="${r.id}" aria-label="Hapus">🗑</button>
           </span>
         </div>
       </div>`;
@@ -3076,8 +2973,8 @@ function render() {
           <div style="text-align:right">
             <b class="money">${fmask(p.amount)}</b>
             <div style="margin-top:4px">
-              ${p.status !== 'paid' ? `<button type="button" class="b s g" data-a="payR" data-id="${esc(p.id)}">Lunas</button>` : ''}
-              <button type="button" class="b s" data-a="xP" data-id="${esc(p.id)}">🗑</button>
+              ${p.status !== 'paid' ? `<button type="button" class="b s g" data-a="payR" data-id="${p.id}">Lunas</button>` : ''}
+              <button type="button" class="b s" data-a="xP" data-id="${p.id}">🗑</button>
             </div>
           </div>
         </div>`).join('') || '<div class="empty">Belum ada piutang. Catat lewat form transaksi (kolom talangan).</div>'
@@ -3097,9 +2994,9 @@ function render() {
           <div style="text-align:right">
             <b class="money">${fmask(w.cost)}</b>
             <div style="margin-top:4px">
-              <button type="button" class="b s" data-a="buyW" data-id="${esc(w.id)}" title="Beli dari kantong">🛒</button>
-              <button type="button" class="b s" data-a="sim" data-id="${esc(w.id)}" title="Simulasi">🧪</button>
-              <button type="button" class="b s" data-a="xS" data-id="${esc(w.id)}">🗑</button>
+              <button type="button" class="b s" data-a="buyW" data-id="${w.id}" title="Beli dari kantong">🛒</button>
+              <button type="button" class="b s" data-a="sim" data-id="${w.id}" title="Simulasi">🧪</button>
+              <button type="button" class="b s" data-a="xS" data-id="${w.id}">🗑</button>
             </div>
           </div>
         </div>`).join('') || '<div class="empty">Wishlist kosong.</div>'
@@ -3122,8 +3019,8 @@ function render() {
           <div class="row">
             <b>${esc(g.title)}</b>
             <span>
-              <button type="button" class="b s g" data-a="dp" data-id="${esc(g.id)}">Setor</button>
-              <button type="button" class="b s" data-a="xG" data-id="${esc(g.id)}">🗑</button>
+              <button type="button" class="b s g" data-a="dp" data-id="${g.id}">Setor</button>
+              <button type="button" class="b s" data-a="xG" data-id="${g.id}">🗑</button>
             </span>
           </div>
           <div class="row sm money"><span>${fmask(sv)}</span><span>${fmask(g.target)} (${Math.round(pc)}%)</span></div>
@@ -3142,7 +3039,7 @@ function render() {
           <div><b>${esc(a.title)}</b><div class="sm">Tiap tanggal ${a.day} · ${a.type === 'income' ? 'pemasukan' : 'pengeluaran'}</div></div>
           <div style="text-align:right">
             <b class="${a.type === 'income' ? 'tg' : 'tb'} money">${fmask(a.amount)}</b>
-            <div><button type="button" class="b s" data-a="xA" data-id="${esc(a.id)}">🗑</button></div>
+            <div><button type="button" class="b s" data-a="xA" data-id="${a.id}">🗑</button></div>
           </div>
         </div>`).join('') || '<div class="empty">Belum ada jadwal berulang.</div>'
     );
@@ -3152,8 +3049,8 @@ function render() {
     h += card('Favorit', '',
       S.tpls.map(t => `
         <div class="it">
-          <button type="button" class="b g" data-a="tp" data-id="${esc(t.id)}" style="flex:1">⚡ ${esc(t.title)} · ${fmask(t.amount)}</button>
-          <button type="button" class="b s" data-a="xF" data-id="${esc(t.id)}">🗑</button>
+          <button type="button" class="b g" data-a="tp" data-id="${t.id}" style="flex:1">⚡ ${esc(t.title)} · ${fmask(t.amount)}</button>
+          <button type="button" class="b s" data-a="xF" data-id="${t.id}">🗑</button>
         </div>`).join('') || '<div class="empty">Belum ada favorit. Centang saat mencatat transaksi.</div>'
     );
   }
@@ -3215,7 +3112,7 @@ function render() {
 
         const full = esc(t.date.replace('T', ' '));
         return `
-        <div class="t-card fold${OPEN.has(t.id) ? ' open' : ''}" data-fold="${esc(t.id)}">
+        <div class="t-card fold${OPEN.has(t.id) ? ' open' : ''}" data-fold="${t.id}">
           <div class="t-icon-box">${esc(iconCat)}</div>
           <div class="t-main-info">
             <div class="t-title">${esc(t.title)}</div>
@@ -3225,8 +3122,8 @@ function render() {
           <div class="fold-body"><div>
             <div class="t-sub">${full} · ${c ? esc(c.name) : 'Tanpa kategori'} · ${sub}</div>
             <div class="fold-actions">
-              <button type="button" class="b s" data-a="eT" data-id="${esc(t.id)}">✏️ Edit</button>
-              <button type="button" class="b s" data-a="xT" data-id="${esc(t.id)}">🗑 Hapus</button>
+              <button type="button" class="b s" data-a="eT" data-id="${t.id}">✏️ Edit</button>
+              <button type="button" class="b s" data-a="xT" data-id="${t.id}">🗑 Hapus</button>
             </div>
           </div></div>
         </div>`;
@@ -3366,7 +3263,6 @@ const ACT = {
     el.select();
     try { el.setSelectionRange(0, 999999); } catch (e) {}
     let ok = false;
-    if (b.dataset.t === 't2') S.config.lastBackup = Date.now();
     try { ok = document.execCommand('copy'); } catch (e) {}
     try {
       if (navigator.clipboard) {
@@ -3877,12 +3773,6 @@ document.addEventListener('visibilitychange', () => {
   if (S.transactions.length !== n || today() !== LASTDAY) { LASTDAY = today(); render(); }
 });
 render();
-try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-addEventListener('pagehide', () => { try { save(); } catch (e) {} });
-setTimeout(() => {
-  const lb = S.config.lastBackup || 0;
-  if (S.transactions.length >= 10 && Date.now() - lb > 14 * 864e5) toast(lb ? 'Sudah lebih dari 2 minggu sejak cadangan terakhir. Salin JSON di Bagikan & Cadangkan.' : 'Belum ada cadangan. Salin JSON di Bagikan & Cadangkan agar data aman.');
-}, 3000);
 </script>
 <!-- v5: Glass & gradien, maskot celengan, angka menghitung naik -->
 <style>

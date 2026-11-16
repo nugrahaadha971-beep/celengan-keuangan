@@ -1,6 +1,5 @@
 // Celengan Kekayaan - service worker (offline)
-// naikkan angka ini setiap index.html atau aset berubah, agar cache diperbarui
-const V = 'celengan-v45';
+const V = 'celengan-v43';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
