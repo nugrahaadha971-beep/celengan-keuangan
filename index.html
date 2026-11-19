@@ -2386,6 +2386,33 @@ function cashCard() {
   </div>`;
 }
 
+function wcCalc(id) {
+  const w = S.wishlist.find(x => x.id === id);
+  if (!w) return;
+  const wp = S.pockets.find(x => x.linkedWishlistId === id);
+  const sisa = Math.max(0, w.cost - (wp ? wp.balance : 0));
+  const el = k => document.getElementById(k);
+  const now = new Date();
+  // bulan kalender ke-n dari bulan ini, misalnya Nov 2026 + 3 = Feb 2027
+  const when = n => { const d = new Date(now.getFullYear(), now.getMonth() + n, 1); return BLN_FULL[d.getMonth()] + ' ' + d.getFullYear(); };
+  if (el('wc-sisa')) el('wc-sisa').innerHTML = fmask(sisa);
+  const t = Math.floor(Number((el('wc-t') || {}).value));
+  const r1 = el('wc-r1');
+  if (r1) {
+    if (!(t > 0)) r1.innerHTML = '';
+    else if (sisa === 0) r1.innerHTML = 'Dana sudah cukup, bisa dibeli sekarang.';
+    else r1.innerHTML = 'Nabung <b class="money">' + fmask(Math.ceil(sisa / t)) + '</b> per bulan, bisa beli ' + when(t) + '.';
+  }
+  let nom = 0;
+  try { nom = ev((el('wc-n') || {}).value); } catch (e) { nom = 0; }
+  const r2 = el('wc-r2');
+  if (r2) {
+    if (!(nom > 0)) r2.innerHTML = '';
+    else if (sisa === 0) r2.innerHTML = 'Dana sudah cukup, bisa dibeli sekarang.';
+    else { const m = Math.ceil(sisa / nom); r2.innerHTML = 'Butuh <b>' + m + ' bulan</b>, bisa beli ' + when(m) + '.'; }
+  }
+}
+
 function wishProg(w) {
   const p = S.pockets.find(x => x.linkedWishlistId === w.id);
   if (!p) return '';
@@ -2995,7 +3022,7 @@ function render() {
             <b class="money">${fmask(w.cost)}</b>
             <div style="margin-top:4px">
               <button type="button" class="b s" data-a="buyW" data-id="${w.id}" title="Beli dari kantong">🛒</button>
-              <button type="button" class="b s" data-a="sim" data-id="${w.id}" title="Simulasi">🧪</button>
+              <button type="button" class="b s" data-a="sim" data-id="${w.id}" title="Kalkulator tabungan">🧪</button>
               <button type="button" class="b s" data-a="xS" data-id="${w.id}">🗑</button>
             </div>
           </div>
@@ -3426,12 +3453,19 @@ const ACT = {
   sim(b) {
     const w = S.wishlist.find(x => x.id === b.dataset.id);
     if (!w) return;
+    const wp = S.pockets.find(x => x.linkedWishlistId === w.id);
     const a = safe(), z = safe(w.cost);
-    info('Simulasi ' + esc(w.title), `
-      Harga: <b class="money">${fmask(w.cost)}</b><br>
-      Batas harian sekarang: <b class="money">${fmask(a.limit)}</b><br>
-      Setelah beli: <b class="money">${fmask(z.limit)}</b><br>
-      Turun: <b class="tb money">${fmask(a.limit - z.limit)}/hari</b> selama ${a.days} hari`);
+    info('Kalkulator ' + esc(w.title), `
+      <div class="sm">Harga ${fmask(w.cost)}${wp ? ' · terkumpul ' + fmask(wp.balance) + ' di ' + esc(wp.icon) + ' ' + esc(wp.name) : ' · belum ada kantong terhubung'}</div>
+      <div class="it c" style="margin-top:10px"><span class="sm">Sisa yang harus dikumpulkan</span><b id="wc-sisa"></b></div>
+      <label>Mau beli dalam berapa bulan?</label>
+      <input id="wc-t" type="number" min="1" inputmode="numeric" placeholder="contoh: 3" oninput="wcCalc('${w.id}')">
+      <div class="sm" id="wc-r1" style="margin-top:6px"></div>
+      <label>Atau, mau nabung berapa per bulan?</label>
+      <input id="wc-n" inputmode="decimal" placeholder="contoh: 500rb" oninput="wcCalc('${w.id}')">
+      <div class="sm" id="wc-r2" style="margin-top:6px"></div>
+      <div class="sm" style="margin-top:12px">Batas harian: sekarang ${fmask(a.limit)}, setelah beli ${fmask(z.limit)} (turun ${fmask(a.limit - z.limit)}/hari selama ${a.days} hari).</div>`);
+    wcCalc(w.id);
   },
   ab() {
     AB = evalAB();
