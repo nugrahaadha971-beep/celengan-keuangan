@@ -270,8 +270,11 @@ select.enh { display: none; }
   padding-bottom: 4px;
   margin-bottom: 12px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.type-chips::-webkit-scrollbar { display: none; }
 .type-chip {
+  flex: 0 0 auto;
   padding: 6px 14px;
   border-radius: 99px;
   border: 1px solid var(--bd);
@@ -1652,11 +1655,7 @@ function REP() {
 
 function CSV() {
   const rows = [['Tanggal', 'Jenis', 'Keterangan', 'Kategori', 'Dompet', 'Jumlah']];
-  const exportRows = S.transactions.filter(t =>
-    (R3 ? last3().some(m => t.date.startsWith(m)) : t.date.startsWith(MF === 'all' ? '' : MF)) &&
-    (!Q.trim() || (t.title || '').toLowerCase().includes(Q.trim().toLowerCase())) &&
-    (!FW || t.walletId === FW || t.toWalletId === FW) && (!FC || t.categoryId === FC)
-  ).sort((a,b) => b.date.localeCompare(a.date));
+  const exportRows = hist();
   exportRows.forEach(t => {
     const c = S.categories.find(x => x.id === t.categoryId);
     const w = S.wallets.find(x => x.id === t.walletId);
@@ -2560,10 +2559,22 @@ function moreHTML() {
   </div>`;
 }
 
+// pencarian riwayat: judul, kategori, dompet, atau nominal (tanda titik/koma diabaikan)
+const txMatch = (t, q) => {
+  const k = q.trim().toLowerCase();
+  if (!k) return true;
+  const c = S.categories.find(x => x.id === t.categoryId);
+  const w = S.wallets.find(x => x.id === t.walletId);
+  const hay = [t.title, c && c.name, w && w.name, t.person].filter(Boolean).join(' ').toLowerCase();
+  if (hay.includes(k)) return true;
+  const digits = k.replace(/[.,\s]|rp/g, '');
+  return /^\d+$/.test(digits) && String(Math.abs(t.amount)).includes(digits);
+};
+
 const hist = () => S.transactions
   .filter(t =>
     (R3 ? last3().some(m => t.date.startsWith(m)) : t.date.startsWith(MF === 'all' ? '' : MF)) &&
-    (!Q.trim() || (t.title || '').toLowerCase().includes(Q.trim().toLowerCase())) &&
+    (!Q.trim() || txMatch(t, Q)) &&
     (!FW || t.walletId === FW || t.toWalletId === FW) &&
     (!FC || t.categoryId === FC) &&
     (FT === 'all' || (FT === 'receivable' ? S.receivables.some(r => r.id === t.receivableId) || t.person : t.type === FT))
@@ -2606,7 +2617,8 @@ const fmtGroupDate = dStr => {
   const yStr = `${yDay.getFullYear()}-${p2(yDay.getMonth() + 1)}-${p2(yDay.getDate())}`;
   if (d === yStr) return 'Kemarin';
 
-  const dt = new Date(d);
+  const [yy, mm, dd] = d.split('-').map(Number);
+  const dt = new Date(yy, mm - 1, dd);
   const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   return `${days[dt.getDay()]}, ${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear()}`;
@@ -2641,6 +2653,7 @@ const histAnalyticsView = txList => {
 };
 
 const batchRow = txs => {
+  const W = id => S.wallets.find(x => x.id === id);
   const tr = txs.filter(t => t.type === 'transfer'), fe = txs.filter(t => t.type === 'expense');
   const src = W(tr[0].walletId), id = tr[0].batchId;
   const total = sum(tr, t => t.amount), fees = sum(fe, t => t.amount);
@@ -2693,7 +2706,7 @@ const renderTimelineList = (txList, fn) => {
     } else if (dayExp > 0) {
       subNetText = `-${fmtHuman(dayExp)}`;
     } else {
-      subNetText = `${dayNet >= 0 ? '+' : ''}${fmtHuman(dayNet)}`;
+      subNetText = `${dayTx.length} transaksi`;
     }
 
     const dk = 'd:' + dateKey;
@@ -2723,7 +2736,7 @@ const histBody = (tx, fn) => {
   rowsHook = fn;
   return {
     join: () => filterBar() +
-      histAnalyticsView(tx) +
+      '<div id="ha">' + histAnalyticsView(tx) + '</div>' +
       '<div id="hl">' + renderTimelineList(tx, fn) + '</div>'
   };
 };
@@ -2848,7 +2861,7 @@ function render() {
   $('#pc').textContent = `Sisa bulan ini: ${u.days} hari`;
 
   const fm = MF === 'all' ? '' : MF;
-  const PL = MF === 'all' ? 'Semua waktu' : MF;
+  const PL = MF === 'all' ? 'Semua waktu' : BLN_FULL[+MF.slice(5, 7) - 1] + ' ' + MF.slice(0, 4);
   const mtx = S.transactions.filter(t => t.date.startsWith(fm));
   const W = id => S.wallets.find(x => x.id === id);
   const C = id => S.categories.find(x => x.id === id);
@@ -3681,9 +3694,12 @@ document.addEventListener('input', e => {
   }
   if (e.target.name === 'sq') {
     Q = e.target.value;
-    const hl = $('#hl');
+    const hl = $('#hl'), ha = $('#ha');
     if (hl && rowsHook) {
-      hl.innerHTML = renderTimelineList(hist(), rowsHook);
+      const tx = hist();
+      if (ha) ha.innerHTML = histAnalyticsView(tx);
+      hl.innerHTML = renderTimelineList(tx, rowsHook);
+      if (window.__maskAll) window.__maskAll();
     }
     return;
   }
